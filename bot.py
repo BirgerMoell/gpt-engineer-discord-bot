@@ -4,6 +4,7 @@ import os
 import discord
 from discord import app_commands
 from discord.ext import commands, tasks
+from chat_gpt import get_response_from_chat_gpt_everything_bot
 import requests
 
 load_dotenv()
@@ -83,10 +84,52 @@ async def on_ready():
 
 @client.event
 async def on_message(message):
-    if message.author == client.user:
-        return
+    #print("running psychology bot script")
+    bot = client.user
+    print("the bot is", bot)
+    prompt = str(message.content)
+    channel = message.channel
+    userID = message.author.id
+    print("the user is", userID)
+    # check that the message is not sent by the AI bot
+    # check if channel is
+    mentioned_in_message = False
 
-    if message.content.startswith('$hello'):
-        await message.channel.send('Hello!')
+    if message.guild:
+        print("message is from a channel")
+        supported_channel = "🐢ai-code-advice"
+        data_channel = "test_not_implemented_yet"
+        channel_name = message.channel.name
+
+        # check if the bot is mentioned in an @messagse
+        print("the bot is", bot)
+        print("the message mentions", message.mentions)
+        if bot in message.mentions:
+            mentioned_in_message = True
+            print("the bot is mentioned in the message")
+
+        if channel_name != supported_channel and channel_name != data_channel and mentioned_in_message == False:
+            print("unsupporte channel", channel)
+            return
+
+        if channel_name == data_channel:
+            print("Inside the data channel with", prompt)
+            ## store the messages in the db
+            if prompt == ":endofconversation:":
+                print("we ended the conversation")
+            return
+
+        if not(message.author.bot):
+            print("the message is", message)
+            print("the userID is", userID)
+            print("the prompt is", prompt)
+            print("the channel is", channel)
+
+            # call chat gpt api
+
+            response = get_response_from_chat_gpt_everything_bot(prompt)
+            await channel.send(response)
+
 
 client.run(GPT_ENGINEER_GUILD)
+
