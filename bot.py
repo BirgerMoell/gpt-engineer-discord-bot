@@ -3,6 +3,8 @@ from dotenv import load_dotenv
 import os
 import discord
 from discord import app_commands
+from discord.ext import commands, tasks
+import requests
 
 load_dotenv()
 
@@ -38,20 +40,46 @@ class ChatClient(discord.Client):
 # List the set of intents needed for commands to operate properly.
 intents = discord.Intents.default()
 intents.message_content = True
+intents.typing = False
+intents.presences = False
 client = ChatClient(intents=intents)
-sent_buttons = None
+
+webhook_url = 'https://discord.com/api/webhooks/1121197210055487488/ZeFBn5SDLXiybvaEzhBLA78IvCivMqQg33aSeybx1A3TxCJr-PoMXd_ypk43ycXgZMjg'
 
 
-# This example requires the 'message_content' intent.
+@tasks.loop(minutes=1)  # run this task every 1 minute
+async def check_github_update():
+    repo = 'AntonOsika/gpt-engineer'
+    headers = {'Accept': 'application/vnd.github.v3+json'}
+    url = f'https://api.github.com/repos/{repo}/commits'
 
-intents = discord.Intents.default()
-intents.message_content = True
+    response = requests.get(url, headers=headers)
+    data = response.json()
+    
+    # Get the latest commit
+    latest_commit = data[0]['sha']
+    
+    try:
+        with open('last_commit.txt', 'r') as file:
+            last_commit = file.read()
+    except FileNotFoundError:
+        with open('last_commit.txt', 'w') as file:
+            file.write(latest_commit)
+        return
 
-client = discord.Client(intents=intents)
+    if latest_commit != last_commit:
+        data = {
+            "content": f"The repository {repo} has been updated! The latest commit is {latest_commit}."
+        }
+        requests.post(webhook_url, json=data)
+        with open('last_commit.txt', 'w') as file:
+            file.write(latest_commit)
+
 
 @client.event
 async def on_ready():
     print(f'We have logged in as {client.user}')
+    check_github_update.start()
 
 @client.event
 async def on_message(message):
